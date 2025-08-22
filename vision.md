@@ -44,7 +44,9 @@ sarcastic_bot/
 ├── logs/                   # Директория для логов
 ├── .env                    # Переменные окружения (локально)
 ├── env.example             # Пример конфигурации
-├── requirements.txt        # Python зависимости
+├── pyproject.toml          # Конфигурация проекта и зависимости (uv)
+├── uv.lock                 # Фиксация версий зависимостей
+├── Makefile                # Автоматизация команд сборки
 ├── Dockerfile              # Контейнеризация
 ├── docker-compose.yml      # Для локальной разработки
 ├── railway.toml            # Конфигурация Railway
@@ -197,10 +199,12 @@ user_sessions = {
 ### Окружения
 
 #### Локальная разработка
-- **Запуск**: `python main.py`
+- **Быстрый старт**: `make setup` → `make run`
+- **Запуск**: `make run` или `uv run python main.py`
 - **Управление**: ручной старт/стоп
-- **Конфигурация**: `.env` файл
-- **Docker**: `docker-compose up` (опционально)
+- **Конфигурация**: `.env` файл (автоматически создается из env.example)
+- **Установка зависимостей**: `make dev` или `uv sync`
+- **Docker**: `make docker-run` или `docker-compose up`
 
 #### Продакшн (Railway)
 - **Контейнеризация**: Docker
@@ -255,6 +259,244 @@ DEBUG=false
 - Проверка обязательных переменных при запуске
 - Fallback значения для опциональных параметров
 - Логгирование некорректной конфигурации
+
+## Управление зависимостями
+
+### Инструмент: uv
+
+Используем современный менеджер пакетов `uv` для быстрого и надежного управления зависимостями Python.
+
+### Преимущества uv
+- **Скорость**: в 10-100 раз быстрее pip
+- **Детерминированность**: автоматическое создание lock-файлов
+- **Безопасность**: проверка целостности пакетов
+- **Простота**: совместимость с pip/pyproject.toml
+
+### Структура конфигурации
+
+**pyproject.toml**:
+```toml
+[project]
+name = "sarcastic-bot"
+version = "0.1.0"
+description = "Саркастический Telegram-бот для консультаций"
+dependencies = [
+    "aiogram>=3.7.0",
+    "aiohttp>=3.9.5", 
+    "python-dotenv>=1.0.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "black>=24.4.2",
+    "flake8>=7.0.0",
+    "mypy>=1.10.0",
+    "pytest>=8.2.2",
+    "pytest-asyncio>=0.23.7",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+```
+
+### Основные команды
+
+```bash
+# Установка uv
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Создание проекта
+uv init sarcastic-bot
+
+# Установка зависимостей
+uv sync
+
+# Добавление новой зависимости
+uv add aiogram
+
+# Добавление dev зависимости  
+uv add --dev pytest
+
+# Запуск приложения
+uv run python main.py
+
+# Создание lock-файла
+uv lock
+
+# Обновление зависимостей
+uv sync --upgrade
+```
+
+### Особенности для проекта
+- **Фиксация версий**: автоматическое создание `uv.lock`
+- **Изоляция**: автоматическое создание виртуального окружения
+- **Быстрая установка**: кэширование и параллельная загрузка
+- **CI/CD интеграция**: поддержка в Docker и GitHub Actions
+
+### Docker интеграция
+```dockerfile
+# Установка uv в Docker
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
+
+# Установка зависимостей
+COPY pyproject.toml uv.lock ./
+RUN uv sync --frozen --no-cache
+```
+
+## Автоматизация сборок
+
+### Инструмент: Make
+
+Используем `Makefile` для автоматизации повторяющихся команд разработки и деплоя.
+
+### Установка Make в Windows
+
+```bash
+winget install GnuWin32.Make
+```
+
+### Makefile для проекта
+
+```makefile
+# Основные переменные
+PROJECT_NAME = sarcastic-bot
+PYTHON = uv run python
+UV = uv
+
+# Цвета для вывода
+GREEN = \033[0;32m
+YELLOW = \033[1;33m
+RED = \033[0;31m
+NC = \033[0m # No Color
+
+.PHONY: help install dev run test lint format clean docker-build docker-run deploy
+
+# Помощь (по умолчанию)
+help:
+	@echo "$(GREEN)Доступные команды:$(NC)"
+	@echo "  $(YELLOW)install$(NC)     - Установка продакшн зависимостей"
+	@echo "  $(YELLOW)dev$(NC)         - Установка всех зависимостей (включая dev)"
+	@echo "  $(YELLOW)run$(NC)         - Запуск бота"
+	@echo "  $(YELLOW)test$(NC)        - Запуск тестов"
+	@echo "  $(YELLOW)lint$(NC)        - Проверка кода (flake8, mypy)"
+	@echo "  $(YELLOW)format$(NC)      - Форматирование кода (black)"
+	@echo "  $(YELLOW)clean$(NC)       - Очистка временных файлов"
+	@echo "  $(YELLOW)docker-build$(NC) - Сборка Docker образа"
+	@echo "  $(YELLOW)docker-run$(NC)  - Запуск в Docker"
+	@echo "  $(YELLOW)deploy$(NC)      - Деплой на Railway"
+
+# Установка продакшн зависимостей
+install:
+	@echo "$(GREEN)Установка зависимостей...$(NC)"
+	$(UV) sync --no-dev
+
+# Установка всех зависимостей
+dev:
+	@echo "$(GREEN)Установка dev зависимостей...$(NC)"
+	$(UV) sync
+
+# Запуск бота
+run:
+	@echo "$(GREEN)Запуск бота...$(NC)"
+	$(PYTHON) main.py
+
+# Запуск тестов
+test:
+	@echo "$(GREEN)Запуск тестов...$(NC)"
+	$(PYTHON) -m pytest tests/ -v
+
+# Линтинг
+lint:
+	@echo "$(GREEN)Проверка кода...$(NC)"
+	$(PYTHON) -m flake8 .
+	$(PYTHON) -m mypy .
+
+# Форматирование
+format:
+	@echo "$(GREEN)Форматирование кода...$(NC)"
+	$(PYTHON) -m black .
+
+# Очистка
+clean:
+	@echo "$(GREEN)Очистка временных файлов...$(NC)"
+	find . -type d -name "__pycache__" -exec rm -rf {} +
+	find . -type f -name "*.pyc" -delete
+	find . -type d -name "*.egg-info" -exec rm -rf {} +
+
+# Docker сборка
+docker-build:
+	@echo "$(GREEN)Сборка Docker образа...$(NC)"
+	docker build -t $(PROJECT_NAME) .
+
+# Docker запуск
+docker-run:
+	@echo "$(GREEN)Запуск в Docker...$(NC)"
+	docker run --env-file .env $(PROJECT_NAME)
+
+# Деплой (условно)
+deploy:
+	@echo "$(GREEN)Деплой на Railway...$(NC)"
+	@echo "$(YELLOW)Убедитесь что Railway CLI установлен$(NC)"
+	railway up
+
+# Быстрая проверка проекта
+check: lint test
+	@echo "$(GREEN)Проект готов к коммиту!$(NC)"
+
+# Полная подготовка dev окружения
+setup: dev
+	@echo "$(GREEN)Создание .env из примера...$(NC)"
+	@if [ ! -f .env ]; then cp env.example .env; fi
+	@echo "$(YELLOW)Не забудьте настроить .env файл!$(NC)"
+```
+
+### Основные команды Make
+
+```bash
+# Помощь по командам
+make help
+
+# Установка зависимостей
+make install          # Продакшн
+make dev              # Разработка
+
+# Разработка
+make run              # Запуск бота
+make test             # Тестирование
+make lint             # Проверка кода
+make format           # Форматирование
+
+# Docker
+make docker-build     # Сборка образа
+make docker-run       # Запуск в контейнере
+
+# Утилиты
+make clean            # Очистка
+make check            # Полная проверка (lint + test)
+make setup            # Первоначальная настройка
+```
+
+### Преимущества Make
+- **Простота**: единые команды для всех задач
+- **Кроссплатформенность**: работает везде где есть make
+- **Стандартизация**: привычные команды для разработчиков
+- **Автоматизация**: цепочки команд в одном вызове
+- **Документированность**: `make help` всегда покажет доступные команды
+
+### Интеграция с CI/CD
+
+В GitHub Actions можно использовать make команды:
+```yaml
+- name: Setup project
+  run: make setup
+
+- name: Run tests
+  run: make check
+
+- name: Build and deploy
+  run: make docker-build && make deploy
+```
 
 ---
 
