@@ -15,7 +15,7 @@ class Settings:
     
     # OpenRouter LLM
     OPENROUTER_API_KEY: str
-    OPENROUTER_MODEL: str = "openai/gpt-4o-mini:free"
+    OPENROUTER_MODEL: str = "openai/gpt-oss-20b:free"
     
     # LLM настройки
     LLM_TIMEOUT: int = 10

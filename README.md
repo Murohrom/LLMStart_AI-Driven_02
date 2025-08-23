@@ -13,7 +13,7 @@ TELEGRAM_BOT_TOKEN=your_telegram_bot_token_here
 
 # OpenRouter LLM Configuration  
 OPENROUTER_API_KEY=your_openrouter_api_key_here
-OPENROUTER_MODEL=openai/gpt-4o-mini:free
+OPENROUTER_MODEL=openai/gpt-oss-20b:free
 
 # LLM Settings (опционально)
 LLM_TIMEOUT=10
