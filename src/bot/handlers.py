@@ -7,6 +7,7 @@ from aiogram.types import Message
 from src.config.settings import settings
 from src.utils.logger import logger
 from src.llm.client import llm_client
+from src.utils.history import history_manager
 
 
 class BotHandlers:
@@ -22,6 +23,7 @@ class BotHandlers:
         """Регистрация всех обработчиков."""
         self.dp.message.register(self.start_handler, CommandStart())
         self.dp.message.register(self.help_handler, Command("help"))
+        self.dp.message.register(self.clear_handler, Command("clear"))
         self.dp.message.register(self.message_handler)
     
     async def start_handler(self, message: Message) -> None:
@@ -51,14 +53,38 @@ class BotHandlers:
             "неподражаемом саркастическом стиле.\n\n"
             "Доступные команды:\n"
             "/start - начать заново\n"
-            "/help - показать эту справку"
+            "/help - показать эту справку\n"
+            "/clear - очистить историю диалога"
         )
         
         await message.answer(help_text)
     
+    async def clear_handler(self, message: Message) -> None:
+        """Обработчик команды /clear."""
+        user_id = str(message.from_user.id)
+        logger.info(f"User {user_id} requested history clear")
+        
+        # Очищаем историю пользователя
+        cleared = history_manager.clear_user_history(user_id)
+        
+        if cleared:
+            response = (
+                "🧹 История диалога очищена!\n\n"
+                "Теперь я забыл о всех твоих предыдущих «достижениях». "
+                "Можешь начать заново и поразить меня новым уровнем гениальности!"
+            )
+        else:
+            response = (
+                "🤔 А очищать-то нечего!\n\n"
+                "У тебя и так не было никакой истории. "
+                "Видимо, даже память о твоих сообщениях испарилась от их... уникальности."
+            )
+        
+        await message.answer(response)
+    
     async def message_handler(self, message: Message) -> None:
-        """Обработчик текстовых сообщений с интеграцией LLM."""
-        user_id = message.from_user.id
+        """Обработчик текстовых сообщений с интеграцией LLM и историей."""
+        user_id = str(message.from_user.id)
         user_text = message.text
         
         if not user_text:
@@ -71,12 +97,27 @@ class BotHandlers:
             # Отправляем сообщение "печатает..." для лучшего UX
             await message.bot.send_chat_action(chat_id=message.chat.id, action="typing")
             
-            # Получаем ответ от LLM
-            llm_response = await llm_client.send_message(user_text)
+            # Получаем контекст из истории диалога
+            context_messages = history_manager.get_context_messages(user_id)
+            
+            # Добавляем новое сообщение пользователя в историю
+            history_manager.add_message(user_id, "user", user_text)
+            
+            # Получаем ответ от LLM с учетом контекста
+            llm_response = await llm_client.send_message(user_text, context_messages)
+            
+            # Добавляем ответ бота в историю
+            history_manager.add_message(user_id, "assistant", llm_response)
             
             # Отправляем ответ пользователю
             await message.answer(llm_response)
-            logger.info(f"Sent LLM response to user {user_id}")
+            logger.info(f"Sent LLM response to user {user_id} (history: {history_manager.get_user_message_count(user_id)} messages)")
+            
+            # Периодически очищаем старые сессии
+            if len(history_manager.user_sessions) % 10 == 0:  # Каждые 10 новых пользователей
+                cleaned = history_manager.clear_old_sessions()
+                if cleaned > 0:
+                    logger.info(f"Cleaned {cleaned} old sessions during maintenance")
             
         except Exception as e:
             logger.error(f"Error processing message for user {user_id}: {e}")

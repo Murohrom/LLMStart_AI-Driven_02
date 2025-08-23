@@ -49,19 +49,22 @@ class LLMClient:
             "которая на самом деле принижает значимость их действий."
         )
     
-    async def send_message(self, user_message: str) -> str:
+    async def send_message(self, user_message: str, context_messages: Optional[list] = None) -> str:
         """
         Отправить сообщение в LLM и получить ответ.
         
         Args:
             user_message: Сообщение пользователя
+            context_messages: Предыдущие сообщения для контекста
             
         Returns:
             Ответ от LLM или fallback сообщение при ошибке
         """
         logger.info(f"Sending message to LLM: {user_message[:100]}...")
+        context_info = f" with {len(context_messages)} context messages" if context_messages else ""
+        logger.debug(f"LLM request{context_info}")
         
-        payload = self._prepare_payload(user_message)
+        payload = self._prepare_payload(user_message, context_messages)
         
         # Попытки отправки с retry логикой
         for attempt in range(settings.LLM_RETRY_ATTEMPTS):
@@ -79,17 +82,31 @@ class LLMClient:
                     logger.error("All LLM attempts failed, using fallback")
                     return self._get_fallback_response()
     
-    def _prepare_payload(self, user_message: str) -> Dict[str, Any]:
+    def _prepare_payload(self, user_message: str, context_messages: Optional[list] = None) -> Dict[str, Any]:
         """Подготовить payload для запроса к OpenRouter."""
+        # Начинаем с системного промпта
+        messages = [{"role": "system", "content": self.system_prompt}]
+        
+        # Добавляем контекст из истории (исключая последнее user сообщение)
+        if context_messages:
+            # Фильтруем контекст: берем не более 19 сообщений (20-1 для нового)
+            context_to_add = context_messages[-(self._get_max_context_messages() - 1):]
+            messages.extend(context_to_add)
+            logger.debug(f"Added {len(context_to_add)} context messages to payload")
+        
+        # Добавляем текущее сообщение пользователя
+        messages.append({"role": "user", "content": user_message})
+        
         return {
             "model": settings.OPENROUTER_MODEL,
-            "messages": [
-                {"role": "system", "content": self.system_prompt},
-                {"role": "user", "content": user_message}
-            ],
+            "messages": messages,
             "temperature": settings.LLM_TEMPERATURE,
             "max_tokens": 500
         }
+    
+    def _get_max_context_messages(self) -> int:
+        """Получить максимальное количество сообщений в контексте."""
+        return 20  # Согласно vision.md
     
     async def _make_request(self, payload: Dict[str, Any]) -> str:
         """Выполнить HTTP запрос к OpenRouter API."""
