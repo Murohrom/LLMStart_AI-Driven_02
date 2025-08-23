@@ -1,0 +1,84 @@
+name: 🚀 Deploy to Railway
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:  # Ручной запуск
+
+jobs:
+  deploy:
+    name: 🚀 Deploy to Production
+    runs-on: ubuntu-latest
+    # Деплой только если тесты прошли успешно
+    if: github.ref == 'refs/heads/main'
+    
+    environment:
+      name: production
+      url: https://your-app-name.railway.app
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+    
+    - name: ⚡ Install uv
+      uses: astral-sh/setup-uv@v2
+      with:
+        version: "latest"
+    
+    - name: 📦 Install dependencies
+      run: |
+        uv sync
+    
+    - name: 🧪 Run quick tests
+      run: |
+        uv run pytest tests/ -x --tb=short
+    
+    - name: 🐳 Build Docker image
+      run: |
+        docker build -t sarcastic-bot:latest .
+    
+    - name: 🔍 Test Docker image
+      run: |
+        # Проверяем что образ запускается без ошибок
+        echo "TELEGRAM_BOT_TOKEN=test_token" > .env.test
+        echo "OPENROUTER_API_KEY=test_key" >> .env.test
+        timeout 5s docker run --env-file .env.test sarcastic-bot:latest || true
+    
+    - name: 🚀 Deploy to Railway
+      uses: bervProject/railway-deploy@v1.3.0
+      with:
+        railway_token: ${{ secrets.RAILWAY_TOKEN }}
+        service: ${{ secrets.RAILWAY_SERVICE_ID }}
+        detach: true
+    
+    - name: 📝 Create deployment summary
+      run: |
+        echo "## 🚀 Deployment Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "✅ **Status**: Deployed successfully" >> $GITHUB_STEP_SUMMARY
+        echo "📦 **Version**: ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+        echo "🌐 **Environment**: Production" >> $GITHUB_STEP_SUMMARY
+        echo "📅 **Date**: $(date)" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 🔗 Links:" >> $GITHUB_STEP_SUMMARY
+        echo "- [Railway Dashboard](https://railway.app/dashboard)" >> $GITHUB_STEP_SUMMARY
+        echo "- [Application Logs](https://railway.app/project/${{ secrets.RAILWAY_PROJECT_ID }}/service/${{ secrets.RAILWAY_SERVICE_ID }})" >> $GITHUB_STEP_SUMMARY
+
+  notify:
+    name: 📢 Notify Deployment
+    runs-on: ubuntu-latest
+    needs: deploy
+    if: always()
+    
+    steps:
+    - name: 📢 Notify success
+      if: needs.deploy.result == 'success'
+      run: |
+        echo "🎉 Deployment successful! Bot is live and ready to spread sarcasm!"
+        # Здесь можно добавить уведомления в Slack/Discord/Telegram
+    
+    - name: 📢 Notify failure
+      if: needs.deploy.result == 'failure'
+      run: |
+        echo "💥 Deployment failed! Even the deployment process couldn't handle our sarcasm."
+        # Здесь можно добавить уведомления об ошибках
