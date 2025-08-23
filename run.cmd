@@ -35,7 +35,6 @@ if %ERRORLEVEL% neq 0 (
         pause
         exit /b 1
     )
-    echo [УСПЕХ] Образ собран, продолжаем запуск...
 )
 
 echo.
@@ -48,7 +47,7 @@ echo Запуск контейнера...
 docker run -d ^
     --name sarcastic-bot-container ^
     --env-file .env ^
-    -v "%cd%\logs:/app/logs" ^
+    -v "%CD%\logs:/app/logs" ^
     --restart unless-stopped ^
     sarcastic-bot
 
