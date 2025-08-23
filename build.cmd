@@ -1,4 +1,5 @@
 @echo off
+chcp 65001 >nul
 echo ========================================
 echo   Сборка Docker образа sarcastic-bot
 echo ========================================
@@ -26,12 +27,13 @@ if %ERRORLEVEL% == 0 (
     echo.
     echo Или вручную:
     echo   docker run --env-file .env sarcastic-bot
+    echo.
 ) else (
     echo.
     echo [ОШИБКА] Ошибка при сборке образа
     echo Проверьте логи выше для деталей
-    pause
     exit /b 1
 )
 
-pause
+:: Pause только если запущен напрямую (не через call)
+if "%1"=="--direct" pause

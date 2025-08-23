@@ -1,4 +1,5 @@
 @echo off
+chcp 65001 >nul
 echo Installing dependencies...
 uv sync --no-dev
 if %errorlevel% neq 0 (

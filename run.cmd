@@ -1,4 +1,5 @@
 @echo off
+chcp 65001 >nul
 echo ========================================
 echo   Запуск sarcastic-bot в Docker
 echo ========================================
@@ -34,6 +35,7 @@ if %ERRORLEVEL% neq 0 (
         pause
         exit /b 1
     )
+    echo [УСПЕХ] Образ собран, продолжаем запуск...
 )
 
 echo.
