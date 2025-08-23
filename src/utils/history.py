@@ -3,7 +3,7 @@ from typing import Dict, List, Optional
 from datetime import datetime, timedelta
 from dataclasses import dataclass
 
-from utils.logger import logger
+from src.utils.logger import logger
 
 
 @dataclass
