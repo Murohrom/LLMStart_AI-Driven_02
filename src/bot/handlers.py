@@ -6,6 +6,7 @@ from aiogram.types import Message
 
 from src.config.settings import settings
 from src.utils.logger import logger
+from src.llm.client import llm_client
 
 
 class BotHandlers:
@@ -21,7 +22,7 @@ class BotHandlers:
         """Регистрация всех обработчиков."""
         self.dp.message.register(self.start_handler, CommandStart())
         self.dp.message.register(self.help_handler, Command("help"))
-        self.dp.message.register(self.echo_handler)
+        self.dp.message.register(self.message_handler)
     
     async def start_handler(self, message: Message) -> None:
         """Обработчик команды /start."""
@@ -30,7 +31,8 @@ class BotHandlers:
         welcome_text = (
             "🤖 Привет! Я саркастический консультант.\n\n"
             "Расскажи мне о своей проблеме, и я дам тебе... "
-            "«поддержку» в своем особом стиле.\n\n"
+            "«поддержку» в своем особом стиле. Теперь я использую "
+            "настоящий ИИ для генерации саркастических советов!\n\n"
             "Команды:\n"
             "/help - справка\n"
             "/start - перезапуск"
@@ -44,8 +46,9 @@ class BotHandlers:
         
         help_text = (
             "📖 Справка по боту:\n\n"
-            "Я - саркастический консультант. Просто напиши мне "
-            "свою проблему, и я отвечу в своем неподражаемом стиле.\n\n"
+            "Я - саркастический консультант, работающий на ИИ. "
+            "Просто напиши мне свою проблему, и я отвечу в своем "
+            "неподражаемом саркастическом стиле.\n\n"
             "Доступные команды:\n"
             "/start - начать заново\n"
             "/help - показать эту справку"
@@ -53,23 +56,38 @@ class BotHandlers:
         
         await message.answer(help_text)
     
-    async def echo_handler(self, message: Message) -> None:
-        """Обработчик текстовых сообщений (эхо-режим для MVP)."""
+    async def message_handler(self, message: Message) -> None:
+        """Обработчик текстовых сообщений с интеграцией LLM."""
         user_id = message.from_user.id
         user_text = message.text
         
-        logger.info(f"User {user_id} sent message: {user_text}")
+        if not user_text:
+            await message.answer("Простите, я обрабатываю только текстовые сообщения.")
+            return
         
-        # Простой саркастический ответ для MVP
-        echo_response = (
-            f"Ого, какая глубокая мысль: \"{user_text}\"\n\n"
-            "Я уверен, что мир изменится от этого откровения! "
-            "Пока что я простой эхо-бот, но скоро стану настоящим "
-            "мастером саркастических советов. 😏"
-        )
+        logger.info(f"User {user_id} sent message: {user_text[:100]}...")
         
-        await message.answer(echo_response)
-        logger.info(f"Sent echo response to user {user_id}")
+        try:
+            # Отправляем сообщение "печатает..." для лучшего UX
+            await message.bot.send_chat_action(chat_id=message.chat.id, action="typing")
+            
+            # Получаем ответ от LLM
+            llm_response = await llm_client.send_message(user_text)
+            
+            # Отправляем ответ пользователю
+            await message.answer(llm_response)
+            logger.info(f"Sent LLM response to user {user_id}")
+            
+        except Exception as e:
+            logger.error(f"Error processing message for user {user_id}: {e}")
+            
+            # Fallback ответ при ошибке
+            error_response = (
+                "Упс! Что-то пошло не так с моим саркастическим процессором. "
+                "Видимо, даже ИИ не справился с твоим уровнем 'гениальности'. "
+                "Попробуй еще раз через минутку. 🤖💥"
+            )
+            await message.answer(error_response)
 
 
 async def main() -> None:
