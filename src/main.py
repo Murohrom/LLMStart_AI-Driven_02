@@ -1,6 +1,11 @@
 """Точка входа приложения."""
 import asyncio
 import sys
+import os
+
+# Добавляем корневую папку в path для корректных импортов
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from src.bot.handlers import main
 from src.utils.logger import logger
 
