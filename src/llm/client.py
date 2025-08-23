@@ -1,6 +1,7 @@
 """HTTP клиент для работы с OpenRouter API."""
 import asyncio
 import json
+import time
 from typing import Optional, Dict, Any
 import aiohttp
 from aiohttp import ClientTimeout, ClientError
@@ -49,38 +50,43 @@ class LLMClient:
             "которая на самом деле принижает значимость их действий."
         )
     
-    async def send_message(self, user_message: str, context_messages: Optional[list] = None) -> str:
+    async def send_message(self, user_message: str, context_messages: Optional[list] = None, user_id: str = "unknown") -> str:
         """
         Отправить сообщение в LLM и получить ответ.
         
         Args:
             user_message: Сообщение пользователя
             context_messages: Предыдущие сообщения для контекста
+            user_id: ID пользователя для логирования
             
         Returns:
             Ответ от LLM или fallback сообщение при ошибке
         """
-        logger.info(f"Sending message to LLM: {user_message[:100]}...")
-        context_info = f" with {len(context_messages)} context messages" if context_messages else ""
-        logger.debug(f"LLM request{context_info}")
+        context_size = len(context_messages) if context_messages else 0
+        logger.info(f"Sending message to LLM: {user_message[:100]}...", 
+                   user_id=user_id, context_size=context_size)
         
         payload = self._prepare_payload(user_message, context_messages)
+        start_time = time.time()
         
         # Попытки отправки с retry логикой
         for attempt in range(settings.LLM_RETRY_ATTEMPTS):
             try:
                 response = await self._make_request(payload)
-                logger.info(f"LLM response received on attempt {attempt + 1}")
+                response_time = (time.time() - start_time) * 1000
+                logger.log_llm_request(user_id, settings.OPENROUTER_MODEL, context_size, response_time)
                 return response
                 
             except Exception as e:
-                logger.warning(f"LLM request failed (attempt {attempt + 1}): {e}")
+                error_type = self._classify_error(e)
+                logger.log_llm_error(user_id, error_type, str(e))
                 
                 if attempt < settings.LLM_RETRY_ATTEMPTS - 1:
                     await asyncio.sleep(2 ** attempt)  # Exponential backoff
                 else:
-                    logger.error("All LLM attempts failed, using fallback")
-                    return self._get_fallback_response()
+                    logger.error(f"All LLM attempts failed with {error_type}, using fallback",
+                               user_id=user_id, error_type=error_type)
+                    return self._get_fallback_response(error_type)
     
     def _prepare_payload(self, user_message: str, context_messages: Optional[list] = None) -> Dict[str, Any]:
         """Подготовить payload для запроса к OpenRouter."""
@@ -136,16 +142,72 @@ class LLMClient:
                     logger.error(f"Unexpected API response format: {data}")
                     raise Exception(f"Invalid response format: {e}")
     
-    def _get_fallback_response(self) -> str:
-        """Получить fallback ответ при недоступности LLM."""
-        fallbacks = [
-            "Даже мой сарказм сломался от твоего вопроса. Попробуй позже.",
-            "Ого, ты сумел сломать даже ИИ! Это настоящее достижение. 🤖💥",
-            "Кажется, мои сервера устали от твоих глубоких мыслей. Попробуй еще раз.",
-            "Технические неполадки... Видимо, даже компьютеры не готовы к такому уровню 'гениальности'."
-        ]
+    def _classify_error(self, error: Exception) -> str:
+        """Классификация типов ошибок для специфичных ответов."""
+        error_str = str(error).lower()
+        
+        if "timeout" in error_str or "read timeout" in error_str:
+            return "timeout"
+        elif "rate limit" in error_str or "429" in error_str:
+            return "rate_limit"
+        elif "api key" in error_str or "401" in error_str or "unauthorized" in error_str:
+            return "auth_error"
+        elif "connection" in error_str or "network" in error_str:
+            return "network_error"
+        elif "server" in error_str or "500" in error_str or "502" in error_str or "503" in error_str:
+            return "server_error"
+        else:
+            return "unknown"
+    
+    def _get_fallback_response(self, error_type: str = "unknown") -> str:
+        """Получить специфичный fallback ответ в зависимости от типа ошибки."""
+        fallback_responses = {
+            "timeout": [
+                "⏰ Даже искусственный интеллект не хочет тратить время на твой вопрос! "
+                "Попробуй сформулировать что-нибудь более... вдохновляющее.",
+                "🕒 Мой ИИ-коллега слишком долго думал над твоим 'гениальным' запросом и устал. "
+                "Попробуй еще раз, может быть, на этот раз получится быстрее.",
+                "⌛ Кажется, мои нейронные сети заснули от скуки. Разбуди их чем-то более интересным!"
+            ],
+            "rate_limit": [
+                "🚦 Ой-ой! Мы превысили лимит запросов. Видимо, ты не единственный, "
+                "кто ищет мою мудрость. Подожди немного и попробуй снова.",
+                "📊 Слишком много народу хочет моих советов одновременно! "
+                "Популярность - это такая тяжелая ноша. Попробуй через минутку.",
+                "🎯 Лимит исчерпан! Даже мой саркастический талант нуждается в отдыхе. "
+                "Дай серверам передохнуть."
+            ],
+            "auth_error": [
+                "🔑 Хм, проблемы с авторизацией... Видимо, даже ИИ не хочет со мной общаться! "
+                "Попробуй позже, может быть, мы помиримся.",
+                "🚪 Меня не пускают к серверам! Наверное, мой сарказм показался им слишком острым. "
+                "Администратор разберется с этим недоразумением."
+            ],
+            "network_error": [
+                "🌐 Сетевые проблемы! Интернет тоже устал от моих остроумных ответов. "
+                "Проверь подключение и попробуй еще раз.",
+                "📡 Связь с моими умными коллегами прервалась. Попробуй позже, "
+                "когда цифровые звезды встанут правильно."
+            ],
+            "server_error": [
+                "🔥 Серверы сломались от твоего вопроса! Это редкое достижение. "
+                "Технические специалисты уже в панике.",
+                "⚡ Внутренняя ошибка сервера... Даже железо не выдержало моего сарказма! "
+                "Попробуй позже."
+            ],
+            "unknown": [
+                "🤖 Что-то пошло не так в моих цифровых мозгах. "
+                "Даже у ИИ бывают плохие дни. Попробуй еще раз.",
+                "💥 Произошла загадочная ошибка! Мои алгоритмы в растерянности. "
+                "Попробуй переформулировать свой 'гениальный' вопрос.",
+                "🎭 Технический сбой! Видимо, даже компьютеры не готовы к такому "
+                "уровню интеллектуальных вызовов."
+            ]
+        }
+        
+        responses = fallback_responses.get(error_type, fallback_responses["unknown"])
         import random
-        return random.choice(fallbacks)
+        return random.choice(responses)
 
 
 # Глобальный экземпляр клиента
