@@ -1,0 +1,54 @@
+# Git
+.git/
+.gitignore
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
+.pytest_cache/
+
+# Virtual environments
+.env/
+.venv/
+env/
+venv/
+ENV/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs (будут монтироваться как volume)
+logs/*.log
+
+# Временные файлы
+*.tmp
+*.temp
+.DS_Store
+Thumbs.db
+
+# Documentation
+doc/
+*.md
+!README.md
+
+# Development files
+.env.local
+.env.development
+.env.test
+
+# Windows
+*.cmd
+!build.cmd
+!run.cmd
+
+# Docker
+docker-compose.yml
+Dockerfile.*

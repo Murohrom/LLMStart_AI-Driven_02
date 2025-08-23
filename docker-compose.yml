@@ -1,0 +1,34 @@
+version: '3.8'
+
+services:
+  sarcastic-bot:
+    build: .
+    container_name: sarcastic-bot-dev
+    env_file: .env
+    volumes:
+      # Логи бота
+      - ./logs:/app/logs
+      # Для разработки - горячая перезагрузка кода
+      - ./src:/app/src
+      - ./prompts:/app/prompts
+    restart: unless-stopped
+    environment:
+      # Переопределение для разработки
+      - LOG_LEVEL=DEBUG
+    # Для отладки можно раскомментировать
+    # ports:
+    #   - "8000:8000"  # если добавите health check endpoint
+
+  # Дополнительный сервис для тестирования
+  bot-test:
+    build: .
+    container_name: sarcastic-bot-test
+    env_file: .env
+    volumes:
+      - ./logs:/app/logs
+    profiles:
+      - test
+    environment:
+      - LOG_LEVEL=DEBUG
+      - LOG_FILE=logs/bot-test.log
+    command: ["uv", "run", "python", "-c", "print('Test container ready')"]
