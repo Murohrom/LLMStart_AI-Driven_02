@@ -28,6 +28,7 @@ if %ERRORLEVEL% == 0 (
     echo Или вручную:
     echo   docker run --env-file .env sarcastic-bot
     echo.
+    exit /b 0
 ) else (
     echo.
     echo [ОШИБКА] Ошибка при сборке образа
