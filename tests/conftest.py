@@ -39,7 +39,7 @@ def mock_settings() -> Generator[Dict[str, Any], None, None]:
         "OPENROUTER_MODEL": "test/model",
         "LLM_TIMEOUT": 5,
         "LLM_TEMPERATURE": 0.8,
-        "LLM_RETRY_ATTEMPTS": 2,
+        "LLM_RETRY_ATTEMPTS": 3,  # Исправлено: должно быть 3
         "LOG_LEVEL": "INFO",
         "LOG_FILE": "logs/test.log",
         "DEBUG": False
@@ -59,6 +59,7 @@ def mock_telegram_message() -> MagicMock:
     message.chat.id = int(TEST_CHAT_ID)
     message.text = TEST_MESSAGE_TEXT
     message.answer = AsyncMock()
+    message.bot = MagicMock()
     message.bot.send_chat_action = AsyncMock()
     return message
 
@@ -75,11 +76,15 @@ def mock_aiohttp_session() -> Generator[AsyncMock, None, None]:
     response_mock.status = 200
     response_mock.json = AsyncMock(return_value=MOCK_LLM_RESPONSE)
     
-    # Правильно настраиваем async context manager
+    # Правильно настраиваем async context manager для сессии
     session_mock.__aenter__ = AsyncMock(return_value=session_mock)
     session_mock.__aexit__ = AsyncMock(return_value=None)
-    session_mock.post.return_value.__aenter__ = AsyncMock(return_value=response_mock)
-    session_mock.post.return_value.__aexit__ = AsyncMock(return_value=None)
+    
+    # Правильно настраиваем async context manager для post запроса
+    post_response = AsyncMock()
+    post_response.__aenter__ = AsyncMock(return_value=response_mock)
+    post_response.__aexit__ = AsyncMock(return_value=None)
+    session_mock.post.return_value = post_response
     
     with patch("aiohttp.ClientSession", return_value=session_mock):
         yield session_mock
@@ -100,6 +105,7 @@ def mock_history_manager() -> Generator[MagicMock, None, None]:
     manager.clear_old_sessions.return_value = 0
     manager.user_sessions = {}
     
+    # Патчим глобальный экземпляр
     with patch("src.utils.history.history_manager", manager):
         yield manager
 
@@ -116,6 +122,7 @@ def mock_logger() -> Generator[MagicMock, None, None]:
     logger.log_llm_error = MagicMock()
     logger.log_validation_error = MagicMock()
     
+    # Патчим глобальный экземпляр
     with patch("src.utils.logger.logger", logger):
         yield logger
 
@@ -126,5 +133,6 @@ def mock_validator() -> Generator[MagicMock, None, None]:
     validator.validate_user_message.return_value = (True, None)
     validator.get_validation_error_message.return_value = "Ошибка валидации"
     
+    # Патчим глобальный экземпляр
     with patch("src.utils.validators.validator", validator):
         yield validator

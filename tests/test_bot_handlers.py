@@ -36,7 +36,9 @@ class TestBotHandlers:
     @pytest.mark.asyncio
     async def test_start_handler(self, bot_handlers: BotHandlers, mock_telegram_message, mock_logger) -> None:
         """Тест обработчика команды /start."""
-        await bot_handlers.start_handler(mock_telegram_message)
+        # Патчим глобальный логгер
+        with patch("src.bot.handlers.logger", mock_logger):
+            await bot_handlers.start_handler(mock_telegram_message)
         
         mock_telegram_message.answer.assert_called_once()
         
@@ -52,7 +54,9 @@ class TestBotHandlers:
     @pytest.mark.asyncio
     async def test_help_handler(self, bot_handlers: BotHandlers, mock_telegram_message, mock_logger) -> None:
         """Тест обработчика команды /help."""
-        await bot_handlers.help_handler(mock_telegram_message)
+        # Патчим глобальный логгер
+        with patch("src.bot.handlers.logger", mock_logger):
+            await bot_handlers.help_handler(mock_telegram_message)
         
         mock_telegram_message.answer.assert_called_once()
         
@@ -71,7 +75,10 @@ class TestBotHandlers:
         """Тест очистки истории когда есть что очищать."""
         mock_history_manager.clear_user_history.return_value = True
         
-        await bot_handlers.clear_handler(mock_telegram_message)
+        # Патчим глобальные компоненты
+        with patch("src.bot.handlers.history_manager", mock_history_manager), \
+             patch("src.bot.handlers.logger", mock_logger):
+            await bot_handlers.clear_handler(mock_telegram_message)
         
         mock_telegram_message.answer.assert_called_once()
         mock_history_manager.clear_user_history.assert_called_once()
@@ -88,7 +95,10 @@ class TestBotHandlers:
         """Тест очистки истории когда нечего очищать."""
         mock_history_manager.clear_user_history.return_value = False
         
-        await bot_handlers.clear_handler(mock_telegram_message)
+        # Патчим глобальные компоненты
+        with patch("src.bot.handlers.history_manager", mock_history_manager), \
+             patch("src.bot.handlers.logger", mock_logger):
+            await bot_handlers.clear_handler(mock_telegram_message)
         
         mock_telegram_message.answer.assert_called_once()
         
@@ -109,7 +119,8 @@ class TestBotHandlers:
             'stats': '⚡ Время ответа: 100мс'
         }
         
-        with patch.object(bot_handlers, '_get_system_status', return_value=mock_status):
+        with patch.object(bot_handlers, '_get_system_status', return_value=mock_status), \
+             patch("src.bot.handlers.logger", mock_logger):
             await bot_handlers.status_handler(mock_telegram_message)
         
         mock_telegram_message.answer.assert_called_once()
@@ -129,7 +140,8 @@ class TestBotHandlers:
     @pytest.mark.asyncio
     async def test_status_handler_error(self, bot_handlers: BotHandlers, mock_telegram_message, mock_logger) -> None:
         """Тест обработки ошибки при проверке статуса."""
-        with patch.object(bot_handlers, '_get_system_status', side_effect=Exception("Test error")):
+        with patch.object(bot_handlers, '_get_system_status', side_effect=Exception("Test error")), \
+             patch("src.bot.handlers.logger", mock_logger):
             await bot_handlers.status_handler(mock_telegram_message)
         
         mock_telegram_message.answer.assert_called_once()
@@ -146,7 +158,8 @@ class TestBotHandlers:
         """Тест получения статуса системы."""
         mock_history_manager.user_sessions = {"user1": {"messages": [1, 2, 3]}}
         
-        with patch("src.bot.handlers.llm_client") as mock_llm_client:
+        with patch("src.bot.handlers.llm_client") as mock_llm_client, \
+             patch("src.bot.handlers.history_manager", mock_history_manager):
             mock_llm_client.send_message.return_value = "test response"
             
             with patch("psutil.cpu_percent", return_value=15.5):
@@ -180,7 +193,9 @@ class TestBotHandlers:
         mock_telegram_message.sticker = None
         mock_telegram_message.animation = None
         
-        await bot_handlers._handle_media_message(mock_telegram_message)
+        # Патчим глобальный логгер
+        with patch("src.bot.handlers.logger", mock_logger):
+            await bot_handlers._handle_media_message(mock_telegram_message)
         
         mock_telegram_message.answer.assert_called_once()
         
@@ -227,7 +242,10 @@ class TestBotHandlers:
         mock_validator.validate_user_message.return_value = (False, "too_long")
         mock_validator.get_validation_error_message.return_value = "Сообщение слишком длинное"
         
-        await bot_handlers.message_handler(mock_telegram_message)
+        # Патчим глобальные компоненты
+        with patch("src.bot.handlers.validator", mock_validator), \
+             patch("src.bot.handlers.logger", mock_logger):
+            await bot_handlers.message_handler(mock_telegram_message)
         
         mock_telegram_message.answer.assert_called_once_with("Сообщение слишком длинное")
         mock_validator.validate_user_message.assert_called_once()
@@ -240,8 +258,13 @@ class TestBotHandlers:
         mock_history_manager.get_context_messages.return_value = []
         mock_history_manager.get_user_message_count.return_value = 1
         
-        with patch("src.bot.handlers.llm_client") as mock_llm_client:
-            mock_llm_client.send_message.return_value = "Саркастический ответ"
+        # Патчим глобальные компоненты
+        with patch("src.bot.handlers.llm_client") as mock_llm_client, \
+             patch("src.bot.handlers.history_manager", mock_history_manager), \
+             patch("src.bot.handlers.validator", mock_validator), \
+             patch("src.bot.handlers.logger", mock_logger):
+            # Используем AsyncMock для асинхронного метода
+            mock_llm_client.send_message = AsyncMock(return_value="Саркастический ответ")
             
             await bot_handlers.message_handler(mock_telegram_message)
         
@@ -250,6 +273,7 @@ class TestBotHandlers:
         
         # Проверяем работу с историей
         mock_history_manager.get_context_messages.assert_called_once()
+        # Проверяем что add_message вызывался для пользователя и ассистента
         assert mock_history_manager.add_message.call_count == 2  # user + assistant
         
         # Проверяем вызов LLM
@@ -267,7 +291,11 @@ class TestBotHandlers:
         mock_validator.validate_user_message.return_value = (True, None)
         mock_history_manager.get_context_messages.return_value = []
         
-        with patch("src.bot.handlers.llm_client") as mock_llm_client:
+        # Патчим глобальные компоненты
+        with patch("src.bot.handlers.llm_client") as mock_llm_client, \
+             patch("src.bot.handlers.history_manager", mock_history_manager), \
+             patch("src.bot.handlers.validator", mock_validator), \
+             patch("src.bot.handlers.logger", mock_logger):
             mock_llm_client.send_message.side_effect = Exception("LLM error")
             
             await bot_handlers.message_handler(mock_telegram_message)
@@ -287,15 +315,22 @@ class TestBotHandlers:
         mock_history_manager.get_context_messages.return_value = []
         mock_history_manager.clear_old_sessions.return_value = 5
         
-        # Симулируем что у нас есть 10 пользователей (кратно 10)
+        # Симулируем что у нас есть ровно 10 пользователей (кратно 10)
+        # Это должно вызвать очистку сессий
         mock_history_manager.user_sessions = {f"user_{i}": {} for i in range(10)}
         
-        with patch("src.bot.handlers.llm_client") as mock_llm_client:
-            mock_llm_client.send_message.return_value = "Response"
+        # Патчим глобальные компоненты
+        with patch("src.bot.handlers.llm_client") as mock_llm_client, \
+             patch("src.bot.handlers.history_manager", mock_history_manager), \
+             patch("src.bot.handlers.validator", mock_validator), \
+             patch("src.bot.handlers.logger", mock_logger):
+            # Используем AsyncMock для асинхронного метода
+            mock_llm_client.send_message = AsyncMock(return_value="Response")
             
             await bot_handlers.message_handler(mock_telegram_message)
         
         # Проверяем что была вызвана очистка
+        # Условие: len(user_sessions) % 10 == 0, т.е. 10 % 10 == 0
         mock_history_manager.clear_old_sessions.assert_called_once()
         
         # Проверяем логирование очистки  
