@@ -3,11 +3,6 @@
 
 FROM python:3.11-slim
 
-# Установка системных зависимостей
-RUN apt-get update && apt-get install -y \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
-
 # Установка uv через pip
 RUN pip install uv
 
