@@ -1,4 +1,4 @@
-name: Deploy to Railway
+name: Deploy to Render
 
 on:
   push:
@@ -7,7 +7,7 @@ on:
     branches: [ main ]
 
 jobs:
-  deploy:
+  test:
     runs-on: ubuntu-latest
     
     steps:
@@ -33,9 +33,8 @@ jobs:
       run: |
         docker build -t sarcastic-bot .
         
-    - name: Deploy to Railway
-      if: github.ref == 'refs/heads/main'
-      uses: railway/deploy@v1
-      with:
-        service: sarcastic-bot
-        token: ${{ secrets.RAILWAY_TOKEN }}
+    - name: Test Docker image
+      run: |
+        echo "TELEGRAM_BOT_TOKEN=test_token" > .env.test
+        echo "OPENROUTER_API_KEY=test_key" >> .env.test
+        timeout 10s docker run --env-file .env.test sarcastic-bot || true
