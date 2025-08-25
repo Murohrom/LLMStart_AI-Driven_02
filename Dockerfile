@@ -29,5 +29,9 @@ RUN adduser --disabled-password --gecos '' botuser && \
     chown -R botuser:botuser /app
 USER botuser
 
+# Healthcheck - проверка, что процесс Python запущен
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD pgrep python || exit 1
+
 # Точка входа
 CMD ["python", "src/main.py"]
