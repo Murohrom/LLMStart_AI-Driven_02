@@ -206,24 +206,64 @@ class TestBotHandlers:
         mock_logger.info.assert_called()
     
     @pytest.mark.asyncio
-    async def test_handle_media_message_sticker(self, bot_handlers: BotHandlers, mock_telegram_message, mock_logger) -> None:
-        """Тест обработки стикера (теперь обрабатывается message_handler)."""
-        mock_telegram_message.text = None  # Нет текста
-        mock_telegram_message.photo = None
-        mock_telegram_message.video = None
-        mock_telegram_message.document = None
-        mock_telegram_message.audio = None
-        mock_telegram_message.voice = None
-        mock_telegram_message.sticker = {"file_id": "test"}
-        mock_telegram_message.animation = None
+    async def test_sticker_handler(self, bot_handlers: BotHandlers, mock_telegram_message, mock_logger) -> None:
+        """Тест обработчика стикеров."""
+        # Настраиваем мок стикера
+        mock_sticker = MagicMock()
+        mock_sticker.file_id = "test_sticker_id"
+        mock_sticker.emoji = "😀"
+        mock_sticker.set_name = "test_sticker_set"
+        mock_telegram_message.sticker = mock_sticker
+        mock_telegram_message.caption = "Тестовый стикер"
         
-        await bot_handlers.message_handler(mock_telegram_message)
+        # Настраиваем мок файла
+        mock_file_info = MagicMock()
+        mock_file_info.file_path = "test_path"
+        bot_handlers.bot.get_file = AsyncMock(return_value=mock_file_info)
         
+        # Настраиваем мок скачивания
+        mock_file_data = MagicMock()
+        mock_file_data.read.return_value = b"fake_image_data"
+        bot_handlers.bot.download_file = AsyncMock(return_value=mock_file_data)
+        
+        # Патчим image_processor
+        mock_analyze = AsyncMock(return_value="Анализ стикера")
+        with patch.object(bot_handlers.image_processor, 'analyze_image', mock_analyze), \
+             patch("src.bot.handlers.logger", mock_logger):
+            await bot_handlers.sticker_handler(mock_telegram_message)
+        
+        # Проверяем что бот отправил "печатает..."
+        mock_telegram_message.bot.send_chat_action.assert_called_once()
+        
+        # Проверяем что анализ был вызван
+        mock_analyze.assert_called_once()
+        
+        # Проверяем что ответ был отправлен
+        mock_telegram_message.answer.assert_called_once_with("Анализ стикера")
+        
+        mock_logger.info.assert_called()
+    
+    @pytest.mark.asyncio
+    async def test_sticker_handler_error(self, bot_handlers: BotHandlers, mock_telegram_message, mock_logger) -> None:
+        """Тест обработки ошибки в обработчике стикеров."""
+        # Настраиваем мок стикера
+        mock_sticker = MagicMock()
+        mock_sticker.file_id = "test_sticker_id"
+        mock_telegram_message.sticker = mock_sticker
+        
+        # Симулируем ошибку при получении файла
+        mock_telegram_message.bot.get_file.side_effect = Exception("File error")
+        
+        with patch("src.bot.handlers.logger", mock_logger):
+            await bot_handlers.sticker_handler(mock_telegram_message)
+        
+        # Проверяем что отправился fallback ответ
         mock_telegram_message.answer.assert_called_once()
-        
-        # Проверяем что упоминается медиафайл
         call_args = mock_telegram_message.answer.call_args[0][0]
-        assert "медиафайл" in call_args.lower()
+        assert "🚨" in call_args
+        assert "стикер" in call_args.lower()
+        
+        mock_logger.error.assert_called()
     
     @pytest.mark.asyncio
     async def test_message_handler_media(self, bot_handlers: BotHandlers, mock_telegram_message) -> None:
