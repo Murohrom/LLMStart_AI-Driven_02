@@ -6,6 +6,17 @@ FROM python:3.11-slim
 # Создание рабочей директории
 WORKDIR /app
 
+# Установка системных зависимостей для OpenCV
+RUN apt-get update && apt-get install -y \
+    libgl1 \
+    libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender1 \
+    libgomp1 \
+    libgthread-2.0-0 \
+    && rm -rf /var/lib/apt/lists/*
+
 # Копирование файлов зависимостей
 COPY pyproject.toml ./
 COPY requirements.txt ./
