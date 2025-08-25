@@ -1,8 +1,23 @@
 """Общие фикстуры для тестов."""
 import pytest
 import asyncio
+import os
 from unittest.mock import AsyncMock, MagicMock, patch
 from typing import Dict, Any, Generator
+
+# Настройка тестового окружения - устанавливаем моковые переменные окружения
+# для всех тестов, чтобы избежать ошибок при импорте модулей
+os.environ.update({
+    "TELEGRAM_BOT_TOKEN": "test_bot_token_for_tests",
+    "OPENROUTER_API_KEY": "test_api_key_for_tests",
+    "OPENROUTER_MODEL": "test/model",
+    "LLM_TIMEOUT": "5",
+    "LLM_TEMPERATURE": "0.8",
+    "LLM_RETRY_ATTEMPTS": "3",
+    "LOG_LEVEL": "INFO",
+    "LOG_FILE": "logs/test.log",
+    "DEBUG": "false"
+})
 
 # Тестовые данные
 TEST_USER_ID = "12345"

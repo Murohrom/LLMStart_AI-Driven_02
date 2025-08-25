@@ -40,6 +40,9 @@ jobs:
         uv run flake8 src tests --count --max-complexity=10 --max-line-length=88 --statistics
     
     - name: 🔍 Type check with mypy
+      env:
+        TELEGRAM_BOT_TOKEN: test_bot_token_for_ci
+        OPENROUTER_API_KEY: test_api_key_for_ci
       run: |
         uv run mypy src --ignore-missing-imports
       continue-on-error: true  # Не прерываем CI на ошибках типизации в MVP
@@ -50,6 +53,16 @@ jobs:
       continue-on-error: true  # Не прерываем CI на форматировании в MVP
     
     - name: 🧪 Run tests with pytest
+      env:
+        TELEGRAM_BOT_TOKEN: test_bot_token_for_ci
+        OPENROUTER_API_KEY: test_api_key_for_ci
+        OPENROUTER_MODEL: test/model
+        LLM_TIMEOUT: 5
+        LLM_TEMPERATURE: 0.8
+        LLM_RETRY_ATTEMPTS: 3
+        LOG_LEVEL: INFO
+        LOG_FILE: logs/test.log
+        DEBUG: false
       run: |
         uv run pytest tests/ -v --tb=short --cov=src --cov-report=xml --cov-report=term-missing
     
