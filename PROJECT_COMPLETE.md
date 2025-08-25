@@ -78,7 +78,7 @@ GitHub Push → Tests → Docker Build → Cloud Deploy → Bot Online
 ```bash
 # Клонировать репозиторий
 git clone <your-repo>
-cd LLMStart_AI-Driven_01
+cd LLMStart_AI-Driven_02
 
 # Установить зависимости
 make install
