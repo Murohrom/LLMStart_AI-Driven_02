@@ -16,6 +16,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Копирование исходного кода
 COPY src/ ./src/
 COPY prompts/ ./prompts/
+COPY test_container_init.py ./
 
 # Создание директории для логов
 RUN mkdir -p logs

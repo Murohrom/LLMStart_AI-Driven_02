@@ -87,14 +87,15 @@ jobs:
       run: |
         docker build -t sarcastic-bot:test .
     
-    - name: 🧪 Test Docker container starts
+    - name: 🧪 Test Docker container initialization
       run: |
         # Создаем тестовый .env файл
         echo "TELEGRAM_BOT_TOKEN=test_token" > .env
         echo "OPENROUTER_API_KEY=test_key" >> .env
         
-        # Запускаем контейнер на 10 секунд и проверяем что он не крашится
-        timeout 10s docker run --env-file .env sarcastic-bot:test || true
+        # Проверяем что контейнер может запуститься и инициализироваться
+        # Копируем тестовый скрипт в контейнер и запускаем его
+        docker run --env-file .env sarcastic-bot:test python /app/test_container_init.py
         
         # Проверяем что образ создался корректно
         docker images | grep sarcastic-bot
