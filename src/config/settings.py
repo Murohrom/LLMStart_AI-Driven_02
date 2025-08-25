@@ -17,6 +17,8 @@ class Settings:
     OPENROUTER_API_KEY: str
     OPENROUTER_MODEL: str = "openai/gpt-oss-20b:free"
     
+
+    
     # LLM настройки
     LLM_TIMEOUT: int = 10
     LLM_TEMPERATURE: float = 0.8
@@ -31,6 +33,7 @@ class Settings:
         """Инициализация настроек с валидацией."""
         self.TELEGRAM_BOT_TOKEN = self._get_required_env("TELEGRAM_BOT_TOKEN")
         self.OPENROUTER_API_KEY = self._get_required_env("OPENROUTER_API_KEY")
+
         
         self.OPENROUTER_MODEL = getenv("OPENROUTER_MODEL", self.OPENROUTER_MODEL)
         self.LLM_TIMEOUT = int(getenv("LLM_TIMEOUT", str(self.LLM_TIMEOUT)))

@@ -31,7 +31,7 @@ class BotHandlers:
         self.dp.message.register(self.help_handler, Command("help"))
         self.dp.message.register(self.clear_handler, Command("clear"))
         self.dp.message.register(self.status_handler, Command("status"))
-        self.dp.message.register(self.image_command_handler, Command("image"))
+
         self.dp.message.register(self.photo_handler, F.photo)
         self.dp.message.register(self.sticker_handler, F.sticker)
         self.dp.message.register(self.document_handler, F.document)
@@ -80,13 +80,11 @@ class BotHandlers:
             "/start - начать это захватывающее приключение заново\n"
             "/help - перечитать этот шедевр инструкций\n"
             "/clear - стереть следы твоих 'гениальных' вопросов\n"
-            "/status - проверить мое блестящее техническое состояние\n"
-            "/image <описание> - создать 'шедевр' по твоему описанию\n\n"
+            "/status - проверить мое блестящее техническое состояние\n\n"
             "📸 Мультимодальные возможности:\n"
             "• Отправляй мне фотографии - я их проанализирую с юмором\n"
             "• Отправляй стикеры - я их тоже проанализирую\n"
-            "• Загружай изображения как документы\n"
-            "• Используй /image для генерации картинок\n\n"
+            "• Загружай изображения как документы\n\n"
             "📝 *Гарантия распространяется исключительно на качество сарказма"
         )
         
@@ -266,61 +264,7 @@ class BotHandlers:
             )
             await message.answer(error_response)
     
-    async def image_command_handler(self, message: Message) -> None:
-        """Обработчик команды /image для генерации изображений."""
-        user_id = str(message.from_user.id)
-        logger.info(f"User {user_id} requested image generation")
-        
-        # Получаем промпт из сообщения
-        command_parts = message.text.split(maxsplit=1)
-        if len(command_parts) < 2:
-            await message.answer(
-                "🎨 О, ты хочешь, чтобы я создал изображение! Как мило...\n\n"
-                "Используй команду так:\n"
-                "/image <описание того, что ты хочешь увидеть>\n\n"
-                "Например:\n"
-                "/image саркастичный робот с поднятым бровью"
-            )
-            return
-        
-        prompt = command_parts[1].strip()
-        
-        # Валидация промпта
-        if len(prompt) < 3:
-            await message.answer("🤔 Слишком короткое описание. Попробуй быть более... многословным.")
-            return
-        
-        if len(prompt) > 1000:
-            await message.answer("📝 Слишком длинное описание. Краткость - сестра таланта, а многословие - враг моего терпения.")
-            return
-        
-        try:
-            # Отправляем сообщение "загружает фото..."
-            await message.bot.send_chat_action(chat_id=message.chat.id, action="upload_photo")
-            
-            # Генерируем изображение
-            image_data = await self.image_processor.generate_image(prompt)
-            
-            if image_data:
-                # Отправляем изображение
-                await message.answer_photo(
-                    types.BufferedInputFile(image_data, filename="generated_image.jpg"),
-                    caption=f"🎨 Вот твое 'гениальное' творение:\n{prompt}"
-                )
-                logger.info(f"Image generated successfully for user {user_id}")
-            else:
-                await message.answer(
-                    "❌ Ой! Что-то пошло не так с генерацией твоего шедевра. "
-                    "Возможно, мой художественный талант временно иссяк. Попробуй позже."
-                )
-                logger.error(f"Failed to generate image for user {user_id}")
-                
-        except Exception as e:
-            logger.error(f"Error generating image for user {user_id}: {e}")
-            await message.answer(
-                "🚨 Поздравляю! Ты сумел сломать даже мой художественный алгоритм. "
-                "Это достижение достойно... особого восхищения."
-            )
+
     
     async def photo_handler(self, message: Message) -> None:
         """Обработчик фотографий."""
