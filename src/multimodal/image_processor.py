@@ -158,7 +158,7 @@ class ImageProcessor:
                 async with session.post(
                     "https://openrouter.ai/api/v1/chat/completions",
                     headers={
-                        "Authorization": f"Bearer {settings.openrouter_api_key}",
+                        "Authorization": f"Bearer {settings.OPENROUTER_API_KEY}",
                         "Content-Type": "application/json",
                         "HTTP-Referer": "https://github.com/your-repo",
                         "X-Title": "AI-Driven Bot"
@@ -200,7 +200,7 @@ class ImageProcessor:
                 async with session.post(
                     "https://openrouter.ai/api/v1/images/generations",
                     headers={
-                        "Authorization": f"Bearer {settings.openrouter_api_key}",
+                        "Authorization": f"Bearer {settings.OPENROUTER_API_KEY}",
                         "Content-Type": "application/json",
                         "HTTP-Referer": "https://github.com/your-repo",
                         "X-Title": "AI-Driven Bot"

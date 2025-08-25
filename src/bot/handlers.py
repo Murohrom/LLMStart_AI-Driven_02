@@ -3,7 +3,7 @@ import asyncio
 import time
 import psutil
 from datetime import datetime
-from aiogram import Bot, Dispatcher, types
+from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import CommandStart, Command
 from aiogram.types import Message
 
@@ -32,8 +32,8 @@ class BotHandlers:
         self.dp.message.register(self.clear_handler, Command("clear"))
         self.dp.message.register(self.status_handler, Command("status"))
         self.dp.message.register(self.image_command_handler, Command("image"))
-        self.dp.message.register(self.photo_handler, types.ContentType.PHOTO)
-        self.dp.message.register(self.document_handler, types.ContentType.DOCUMENT)
+        self.dp.message.register(self.photo_handler, F.photo)
+        self.dp.message.register(self.document_handler, F.document)
         self.dp.message.register(self.message_handler)
     
     async def start_handler(self, message: Message) -> None:
