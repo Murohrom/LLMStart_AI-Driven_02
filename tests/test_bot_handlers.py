@@ -184,7 +184,7 @@ class TestBotHandlers:
     
     @pytest.mark.asyncio
     async def test_handle_media_message_photo(self, bot_handlers: BotHandlers, mock_telegram_message, mock_logger) -> None:
-        """Тест обработки фото."""
+        """Тест обработки фото (теперь обрабатывается photo_handler)."""
         mock_telegram_message.photo = [{"file_id": "test"}]
         mock_telegram_message.video = None
         mock_telegram_message.document = None
@@ -195,20 +195,20 @@ class TestBotHandlers:
         
         # Патчим глобальный логгер
         with patch("src.bot.handlers.logger", mock_logger):
-            await bot_handlers._handle_media_message(mock_telegram_message)
+            await bot_handlers.photo_handler(mock_telegram_message)
         
         mock_telegram_message.answer.assert_called_once()
         
         # Проверяем что упоминается фото
         call_args = mock_telegram_message.answer.call_args[0][0]
         assert "фото" in call_args.lower()
-        assert "текст" in call_args.lower()
         
         mock_logger.info.assert_called()
     
     @pytest.mark.asyncio
     async def test_handle_media_message_sticker(self, bot_handlers: BotHandlers, mock_telegram_message, mock_logger) -> None:
-        """Тест обработки стикера."""
+        """Тест обработки стикера (теперь обрабатывается message_handler)."""
+        mock_telegram_message.text = None  # Нет текста
         mock_telegram_message.photo = None
         mock_telegram_message.video = None
         mock_telegram_message.document = None
@@ -217,13 +217,13 @@ class TestBotHandlers:
         mock_telegram_message.sticker = {"file_id": "test"}
         mock_telegram_message.animation = None
         
-        await bot_handlers._handle_media_message(mock_telegram_message)
+        await bot_handlers.message_handler(mock_telegram_message)
         
         mock_telegram_message.answer.assert_called_once()
         
-        # Проверяем что упоминается стикер
+        # Проверяем что упоминается медиафайл
         call_args = mock_telegram_message.answer.call_args[0][0]
-        assert "стикер" in call_args.lower()
+        assert "медиафайл" in call_args.lower()
     
     @pytest.mark.asyncio
     async def test_message_handler_media(self, bot_handlers: BotHandlers, mock_telegram_message) -> None:
@@ -231,10 +231,13 @@ class TestBotHandlers:
         mock_telegram_message.text = None  # Нет текста
         mock_telegram_message.photo = [{"file_id": "test"}]
         
-        with patch.object(bot_handlers, '_handle_media_message', return_value=None) as mock_handle_media:
-            await bot_handlers.message_handler(mock_telegram_message)
+        await bot_handlers.message_handler(mock_telegram_message)
         
-        mock_handle_media.assert_called_once_with(mock_telegram_message)
+        mock_telegram_message.answer.assert_called_once()
+        
+        # Проверяем что упоминается медиафайл
+        call_args = mock_telegram_message.answer.call_args[0][0]
+        assert "медиафайл" in call_args.lower()
     
     @pytest.mark.asyncio
     async def test_message_handler_invalid_text(self, bot_handlers: BotHandlers, mock_telegram_message, mock_validator, mock_logger) -> None:
