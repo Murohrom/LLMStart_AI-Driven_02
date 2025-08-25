@@ -3,21 +3,15 @@
 
 FROM python:3.11-slim
 
-# Установка uv через pip
-RUN pip install uv
-
 # Создание рабочей директории
 WORKDIR /app
 
 # Копирование файлов зависимостей
 COPY pyproject.toml ./
-COPY uv.lock ./
+COPY requirements.txt ./
 
-# Проверка наличия файлов
-RUN ls -la pyproject.toml uv.lock
-
-# Установка зависимостей
-RUN uv sync --frozen --no-cache --no-dev
+# Установка зависимостей через pip
+RUN pip install --no-cache-dir -r requirements.txt
 
 # Копирование исходного кода
 COPY src/ ./src/
@@ -36,4 +30,4 @@ RUN adduser --disabled-password --gecos '' botuser && \
 USER botuser
 
 # Точка входа
-CMD ["uv", "run", "python", "src/main.py"]
+CMD ["python", "src/main.py"]
