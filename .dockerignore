@@ -52,3 +52,7 @@ doc/
 # Docker
 docker-compose.yml
 Dockerfile.*
+
+# Coverage
+.coverage
+.mypy_cache/

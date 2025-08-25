@@ -10,7 +10,11 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
 WORKDIR /app
 
 # Копирование файлов зависимостей
-COPY pyproject.toml uv.lock ./
+COPY pyproject.toml ./
+COPY uv.lock ./
+
+# Проверка наличия файлов
+RUN ls -la pyproject.toml uv.lock
 
 # Установка зависимостей
 RUN uv sync --frozen --no-cache --no-dev
