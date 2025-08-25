@@ -3,8 +3,13 @@
 
 FROM python:3.11-slim
 
-# Установка uv для быстрого управления зависимостями
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
+# Установка системных зависимостей
+RUN apt-get update && apt-get install -y \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Установка uv через pip
+RUN pip install uv
 
 # Создание рабочей директории
 WORKDIR /app
